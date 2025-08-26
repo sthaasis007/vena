@@ -31,36 +31,38 @@ k_combo.pack(side="left", padx=10)
 output_frame = tk.Frame(root, pady=20)
 output_frame.pack(fill="both", expand=True)
 
-tree = ttk.Treeview(output_frame, columns=("Typpr. T Stator ", "Ph-Ph", "Ph-PE", "Typpr. T Stator"), show="headings")
-for col in ["Typpr. T Stator ", "Ph-Ph", "Ph-PE", "Typpr. T Stator"]:
+tree = ttk.Treeview(output_frame, columns=("Typpr. T Stator \n K ", "Ph-Ph \n U B / 400V", "Ph-PE \n U B / 400V", "Typpr. T Stator \n K"), show="headings")
+for col in ["Typpr. T Stator \n K ", "Ph-Ph \n U B / 400V", "Ph-PE \n U B / 400V", "Typpr. T Stator \n K"]:
     tree.heading(col, text=col)
     tree.column(col, anchor="center", width=150)
 tree.pack(fill="both", expand=True)
+
+# ---- Stats label (bottom of output) ----
+stats_label = tk.Label(output_frame, text="", font=("Arial", 12), pady=10, fg="blue")
+stats_label.pack(side="bottom")
 
 # Global filtered dataframe
 filtered_df = pd.DataFrame()
 
 # ---- Functions ----
 def update_h(event):
-    """Update H dropdown when F is selected"""
     f_val = f_combo.get()
     if not f_val:
         return
     h_options = df[df["F"].astype(str) == f_val]["H"].dropna().astype(str).unique().tolist()
     h_combo["values"] = sorted(h_options)
-    h_combo.set("")  # reset selection
-    k_combo.set("")  # reset K too
-    k_combo["values"] = []  # clear K options
+    h_combo.set("")
+    k_combo.set("")
+    k_combo["values"] = []
 
 def update_k(event):
-    """Update K dropdown when H is selected"""
     f_val = f_combo.get()
     h_val = h_combo.get()
     if not f_val or not h_val:
         return
     k_options = df[(df["F"].astype(str) == f_val) & (df["H"].astype(str) == h_val)]["K"].dropna().astype(str).unique().tolist()
     k_combo["values"] = sorted(k_options)
-    k_combo.set("")  # reset selection
+    k_combo.set("")
 
 def show_output():
     global filtered_df
@@ -72,41 +74,65 @@ def show_output():
         messagebox.showwarning("Missing Selection", "Please select values for F, H, and K before output.")
         return
 
-    # Filter dataframe
     filtered_df = df.copy()
     filtered_df = filtered_df[filtered_df["F"].astype(str) == f_val]
     filtered_df = filtered_df[filtered_df["H"].astype(str) == h_val]
     filtered_df = filtered_df[filtered_df["K"].astype(str) == k_val]
 
-    # Only keep O-P-Q-R
     filtered_df = filtered_df[["O", "P", "Q", "R"]]
 
     # Clear table
     for row in tree.get_children():
         tree.delete(row)
 
-    # Insert new rows
+    # Insert rows
     for _, row in filtered_df.iterrows():
         tree.insert("", "end", values=list(row))
+
+    # ---- Calculate stats ----
+    total = len(filtered_df)
+    null_counts = filtered_df.isna().sum(axis=1)  # number of nulls per row
+    all_null = (null_counts == 4).sum()
+    one_null = (null_counts == 1).sum()
+    more_null = (null_counts >= 2).sum()
+
+    stats_text = f"Total outputs: {total} | Completely null rows: {all_null} | Rows with 1 null: {one_null} | Rows with 2+ nulls: {more_null}"
+    stats_label.config(text=stats_text)
 
 def save_excel():
     if filtered_df.empty:
         messagebox.showwarning("No Data", "No filtered data to save.")
         return
 
-    # Rename columns before saving
+    # ---- File chooser for base name ----
+    file_path = filedialog.asksaveasfilename(defaultextension=".xlsx",
+                                             filetypes=[("Excel files", "*.xlsx")])
+    if not file_path:
+        return
+
+    # ---- First file: only O-P-Q-R renamed ----
     save_df = filtered_df.rename(columns={
         "O": "Typpr. T Stator ",
         "P": "Ph-Ph",
         "Q": "Ph-PE",
         "R": "Typpr. T Stator"
     })
+    save_df.to_excel(file_path, index=False)
 
-    file_path = filedialog.asksaveasfilename(defaultextension=".xlsx",
-                                             filetypes=[("Excel files", "*.xlsx")])
-    if file_path:
-        save_df.to_excel(file_path, index=False)
-        messagebox.showinfo("Saved", f"File saved as {file_path}")
+    # ---- Second file: full filtered output ----
+    # keep all columns for the same filtered rows
+    full_output = df.copy()
+    full_output = full_output[
+        (full_output["F"].astype(str) == f_combo.get()) &
+        (full_output["H"].astype(str) == h_combo.get()) &
+        (full_output["K"].astype(str) == k_combo.get())
+    ]
+
+    full_file_path = file_path.replace(".xlsx", "_full.xlsx")
+    full_output.to_excel(full_file_path, index=False)
+
+    messagebox.showinfo("Saved", f"Saved:\n{file_path}\n{full_file_path}")
+
 
 # ---- Buttons ----
 output_btn = tk.Button(top_frame, text="Output", command=show_output, bg="lightgreen")
