@@ -15,15 +15,15 @@ root.state("zoomed")  # Fullscreen
 top_frame = tk.Frame(root, pady=10)
 top_frame.pack(side="top", fill="x")
 
-tk.Label(top_frame, text="Select F:").pack(side="left", padx=5)
+tk.Label(top_frame, text="Achsh.mm:").pack(side="left", padx=5)
 f_combo = ttk.Combobox(top_frame, state="readonly")
 f_combo.pack(side="left", padx=10)
 
-tk.Label(top_frame, text="Select H:").pack(side="left", padx=5)
+tk.Label(top_frame, text="Iso-Typ:").pack(side="left", padx=5)
 h_combo = ttk.Combobox(top_frame, state="readonly", width=20)
 h_combo.pack(side="left", padx=10)
 
-tk.Label(top_frame, text="Select K:").pack(side="left", padx=5)
+tk.Label(top_frame, text="V:").pack(side="left", padx=5)
 k_combo = ttk.Combobox(top_frame, state="readonly")
 k_combo.pack(side="left", padx=10)
 
@@ -31,8 +31,8 @@ k_combo.pack(side="left", padx=10)
 output_frame = tk.Frame(root, pady=20)
 output_frame.pack(fill="both", expand=True)
 
-tree = ttk.Treeview(output_frame, columns=("O", "P", "Q", "R"), show="headings")
-for col in ["O", "P", "Q", "R"]:
+tree = ttk.Treeview(output_frame, columns=("Typpr. T Stator ", "Ph-Ph", "Ph-PE", "Typpr. T Stator"), show="headings")
+for col in ["Typpr. T Stator ", "Ph-Ph", "Ph-PE", "Typpr. T Stator"]:
     tree.heading(col, text=col)
     tree.column(col, anchor="center", width=150)
 tree.pack(fill="both", expand=True)
@@ -93,10 +93,19 @@ def save_excel():
     if filtered_df.empty:
         messagebox.showwarning("No Data", "No filtered data to save.")
         return
+
+    # Rename columns before saving
+    save_df = filtered_df.rename(columns={
+        "O": "Typpr. T Stator ",
+        "P": "Ph-Ph",
+        "Q": "Ph-PE",
+        "R": "Typpr. T Stator"
+    })
+
     file_path = filedialog.asksaveasfilename(defaultextension=".xlsx",
                                              filetypes=[("Excel files", "*.xlsx")])
     if file_path:
-        filtered_df.to_excel(file_path, index=False)
+        save_df.to_excel(file_path, index=False)
         messagebox.showinfo("Saved", f"File saved as {file_path}")
 
 # ---- Buttons ----
